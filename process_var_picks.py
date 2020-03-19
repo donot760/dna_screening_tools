@@ -1,27 +1,13 @@
 import csv
-from sequence_variants import aa_variants, m13
+from sequence_variants import aa_variants, single_variants, m13, unique, all_aminos, CommentedList
+from itertools import zip_longest
 
-neutral_col = 'Select 2 neutral picks (downselect to least unusual amino acids based on BLOSUM62 diagonal)'
+neutral_col = 'Select 4 neutral picks (downselect to least unusual amino acids based on BLOSUM62 diagonal)'
 disruptive_col = 'Select 2 disruptive picks'
 
-def make_ordinal(n):
-    '''
-    Convert an integer into its string ordinal representation
-
-        make_ordinal(0)   => '0th'
-        make_ordinal(3)   => '3rd'
-        make_ordinal(122) => '122nd'
-        make_ordinal(213) => '213th'
-    '''
-    n = int(n)
-    suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
-    if 11 <= (n % 100) <= 13:
-        suffix = 'th'
-    return str(n) + suffix
-
-with open('fragments.csv') as fi, open('output_fragment_list.csv', 'w+') as fo:
+with open('fragment_variant_picks.csv') as fi, open('aa_fragment_variants.csv', 'w+') as fo:
     reader = csv.DictReader(fi)
-    fo.write('Fragment sequence,comment')
+    fo.write('Comment,Fragment sequence\n')
     while True:
         fragment_rows = []
         aa_str = ''
@@ -35,17 +21,35 @@ with open('fragments.csv') as fi, open('output_fragment_list.csv', 'w+') as fo:
         if not aa_str:
             break # outer loop
         print(aa_str)
-        variant_map = {}
-        comments = []
-        for i, row in enumerate(fragment_rows):
-            sub_list = [a.replace(',', '').strip() for a in row[neutral_col].split()]
-            aa = row['Res']
-            if sub_list:
-                variant_map[(i, aa)] = sub_list
-                comments.append(' and '.join(sub_list) + ' are substituted for ' + aa + ' at ' + make_ordinal(i+1) + ' position')
-        comment = ', '.join(comments) + ' in ' + aa_str + ' templated after its appearance in M13'
-        print(variant_map, comment)
-        variants = aa_variants(aa_str, variant_map, m13)
-        for seq in variants:
-            fo.write(seq + ', ' + comment + '\n')
-    
+        variants = CommentedList()
+        for select_col in neutral_col, disruptive_col:
+            variant_map = {}
+            annotations = []
+            for i, row in enumerate(fragment_rows):
+                sub_list = [a for a in row[select_col].replace(',', ' ').split()]
+                aa = row['Res']
+                annotations.append(row['Position'])
+                if sub_list:
+                    variant_map[(i, aa)] = sub_list
+            variants.extend(aa_variants(aa_str, variant_map, m13, annotations=annotations, padding=26))
+        one_variants = single_variants(aa_str, m13, annotations=['single variants of ' + a for a in annotations], padding=26)
+        variants.extend(one_variants)
+        if False: # whether to include all pairs of neutral variants
+            for idx, aa in zip(range(len(aa_str)), aa_str):
+                row = fragment_rows[idx]
+                if row['PICKS'].strip() != '*':
+                    continue
+                for fwd_idx, fwd_aa in zip(range(len(aa_str)), aa_str):
+                    if fwd_idx <= idx:
+                        continue # avoid inefficient double counting
+                    fwd_row = fragment_rows[fwd_idx]
+                    if fwd_row['PICKS'].strip() != '*':
+                        continue # from this point, only have pairs of neutral picks
+                    print(aa_str)
+                    print(aa, fwd_aa)
+                    variant_map = {(idx, aa):all_aminos, (fwd_idx, fwd_aa):all_aminos}
+                    variants.extend(aa_variants(aa_str, variant_map, m13, annotations=annotations, padding=26))
+        variants = unique(variants)
+        for seq, comment in zip_longest(variants, variants.comments):
+            fo.write('"' + comment + '",' + seq + '\n')
+
