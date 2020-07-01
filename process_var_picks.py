@@ -1,5 +1,5 @@
 import csv
-from sequence_variants import aa_variants, single_variants, m13, unique, all_aminos, CommentedList
+from ecoli_seq_variants import aa_variants, single_variants, m13, unique, all_aminos, CommentedList
 from itertools import zip_longest
 
 neutral_col = 'Select 4 neutral picks (downselect to least unusual amino acids based on BLOSUM62 diagonal)'
@@ -34,7 +34,7 @@ with open('fragment_variant_picks.csv') as fi, open('aa_fragment_variants.csv', 
             variants.extend(aa_variants(aa_str, variant_map, m13, annotations=annotations, padding=26))
         one_variants = single_variants(aa_str, m13, annotations=['single variants of ' + a for a in annotations], padding=26)
         variants.extend(one_variants)
-        if False: # whether to include all pairs of neutral variants
+        if True: # whether to include all pairs of neutral variants
             for idx, aa in zip(range(len(aa_str)), aa_str):
                 row = fragment_rows[idx]
                 if row['PICKS'].strip() != '*':

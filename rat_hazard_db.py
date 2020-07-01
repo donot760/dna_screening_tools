@@ -75,8 +75,7 @@ class RAT_db:
 
     def load(self, path):
         with open(path) as f:
-            for entry in json.loads(f.read()):
-                self.db.add(entry)
+            self.db.update(json.loads(f.read()))
 
     def add_file(self, path, conserve_dist, depth, cover_frac):
         with open(path) as f:

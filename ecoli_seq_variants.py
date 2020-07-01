@@ -1,7 +1,8 @@
+import os
 from itertools import product, zip_longest
 from Bio.Seq import Seq
 
-with open('m13.seq') as f:
+with open(os.path.join('resources', 'm13.seq')) as f:
     m13 = f.read()
 
 ecoli_codons = {
@@ -69,6 +70,7 @@ class CommentedList(list):
         except AttributeError:
             pass
 
+translation_mem = {}
 def aa_variants(aa_seq_in, replace_map, source_dna_seq=None, annotations=None, padding=0):
     """
     E. coli-codon-optimized dna variants of an amino acid sequence.
@@ -79,7 +81,7 @@ def aa_variants(aa_seq_in, replace_map, source_dna_seq=None, annotations=None, p
     [source_dna_seq]: An optional dna string of arbitrary length.
         - If given, the first instance of aa_seq_in in its translation will be used to
           fill in codons for unchanged aas. All 3 frames are checked in sequence.
-    [annotations]: An optional list of strings of the same length that will appear in
+    [annotations]: An optional list (of the same length) of strings that will appear in
           comments.
     [padding]: Only if source_dna_seq provided, optional integer number of bases from
           original sequence to include before and after the variants
@@ -96,8 +98,10 @@ def aa_variants(aa_seq_in, replace_map, source_dna_seq=None, annotations=None, p
         for offset in range(3):
             frame = source_dna_seq[offset:]
             frame = frame[:len(frame)//3*3] # trim to satisfy BioPython
+            translation = translation_mem.get(frame, str(Seq(frame).translate()))
+            translation_mem[frame] = translation
             try:
-                pattern_index = str(Seq(frame).translate()).index(aa_seq_in)*3
+                pattern_index = translation.index(aa_seq_in)*3
             except ValueError:
                 continue
             end_index = pattern_index+len(aa_seq_in)*3
@@ -124,12 +128,12 @@ def aa_variants(aa_seq_in, replace_map, source_dna_seq=None, annotations=None, p
                 raise ValueError # (index, aa) did not match supplied aa seq or there were duplicates
             new_aa_seq = new_aa_seq[:replace_idx] + new_aa + new_aa_seq[replace_idx+1:]
             if new_aa != old_aa:
-                replacement_comments.append(new_aa + ' is substituted for ' + old_aa + ' at ' + make_ordinal(replace_idx+1) + ' position' + (' (' + annotations[replace_idx] + ')' if annotations else ''))
+                replacement_comments.append(new_aa + ' for ' + make_ordinal(replace_idx+1) + ' aa, ' + old_aa + (' (' + annotations[replace_idx] + ')' if annotations else ''))
                 replace_count += 1
         seq_out = ''
         for old_aa, new_aa, dna_idx in zip(aa_seq_in, new_aa_seq, range(0, len(orig_dna_seq), 3)):
             if new_aa == old_aa:
-                seq_out += orig_dna_seq[dna_idx:dna_idx+3]
+                seq_out += str(orig_dna_seq[dna_idx:dna_idx+3]).lower()
             else:
                 seq_out += ecoli_codons[new_aa]
 
@@ -137,7 +141,7 @@ def aa_variants(aa_seq_in, replace_map, source_dna_seq=None, annotations=None, p
         if not replacement_comments:
             comment += 'outputting unchanged sequence: ' + new_aa_seq
         else:
-            comment += ', '.join(replacement_comments) + '. final aa sequence: ' + new_aa_seq + '. included ' + str(padding) + ' bases of padding on each side'
+            comment += ', '.join(replacement_comments) + '. final aa sequence: ' + new_aa_seq + '. ' + str(padding) + ' bases of padding on each side'
         if len(left_flank) != padding or len(right_flank) != padding:
             raise RuntimeError('Didn\'t correctly generate padding.')
         variants.append(left_flank + seq_out + right_flank) # include padding
