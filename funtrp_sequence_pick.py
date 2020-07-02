@@ -43,40 +43,40 @@ def create_possible_sequences(shifted_toggles, residues, window = 19):
             possible_residue_sequences.append(residues[count: count + window])
         count += 1
             
-#    string_list = []
-#    with open("resources/aa_fragment_picks.txt","w+") as f:
-#        for sequence in possible_residue_sequences:
-#            f.write("{}\r\n".format(sequence))
-#    
-#    
-#    with open("resources/aa_fragment_picks.txt","r") as f:
-#        lines = f.readlines()
-#        print(lines)
-#    
-#    
-#    for line in lines:
-#        new_string = ""
-#        for aa in line:
-#            if aa.isalpha():
-#                new_string += aa
-#        string_list.append(new_string)
-##    print(string_list)
-#
-#    with open("resources/aa_fragment_picks.txt","w+") as f:
-#        for string in string_list:
-#            f.write("{}\r\n".format(string))
-   
+    for index in range(len(possible_tval_sequences)):
+        possible_tval_sequences[index] = np.prod(possible_tval_sequences[index])#get the product for each sequence
         
-    return possible_tval_sequences, possible_residue_sequences
-
-def products_for_sequences(list_of_sequences):
+    max_vals = []
     
-    for index in range(len(list_of_sequences)):
-        list_of_sequences[index] = np.prod(list_of_sequences[index])#get the product for each sequence
-        
+    copied_sequences = possible_tval_sequences.copy()
+    for index in range(10):
+        max_ = 0
+        for i in range(len (copied_sequences)):
+            if copied_sequences[i] > max_:
+                max_ = copied_sequences[i]
+                
+        copied_sequences.remove(max_)
+        max_vals.append(max_)
+            
+    print(max_vals)
+    index_values = []
+    for value in max_vals:
+        index_values.append(possible_tval_sequences.index(value))
+            
+#    print(index_values)
+#    
+#    for i in index_values:
+#        if possible_residue_sequences
+    filtered_sequence = []
+    for residue_sequence in possible_residue_sequences:
+        if possible_residue_sequences.index(residue_sequence) in index_values:
+            filtered_sequence.append(residue_sequence)
+#            possible_residue_sequences.remove(residue_sequence)
+    print(filtered_sequence)
+    
     string_list = []
     with open("resources/aa_fragment_picks.txt","w+") as f:
-        for sequence in list_of_sequences:
+        for sequence in filtered_sequence:
             f.write("{}\r\n".format(sequence))
     
     
@@ -96,6 +96,37 @@ def products_for_sequences(list_of_sequences):
     with open("resources/aa_fragment_picks.txt","w+") as f:
         for string in string_list:
             f.write("{}\r\n".format(string))
+   
+        
+    return possible_tval_sequences, possible_residue_sequences
+
+def products_for_sequences(list_of_sequences, residues):
+    
+    for index in range(len(list_of_sequences)):
+        list_of_sequences[index] = np.prod(list_of_sequences[index])#get the product for each sequence
+        
+#    string_list = []
+#    with open("resources/aa_fragment_picks.txt","w+") as f:
+#        for sequence in list_of_sequences:
+#            f.write("{}\r\n".format(sequence))
+#    
+#    
+#    with open("resources/aa_fragment_picks.txt","r") as f:
+#        lines = f.readlines()
+#        print(lines)
+#    
+#    
+#    for line in lines:
+#        new_string = ""
+#        for aa in line:
+#            if aa.isalpha():
+#                new_string += aa
+#        string_list.append(new_string)
+##    print(string_list)
+#
+#    with open("resources/aa_fragment_picks.txt","w+") as f:
+#        for string in string_list:
+#            f.write("{}\r\n".format(string))
     
     return list_of_sequences
 
@@ -119,6 +150,6 @@ if __name__ == '__main__':
     r_t = residue_and_toggles("resources/select_agent_hazard/funtrp_results/NP_042046_funtrp.csv")
     shifted_values = (shift_toggles(r_t[1], .3))
     tval_possibilities = create_possible_sequences(shifted_values, r_t[0])
-    products = products_for_sequences(tval_possibilities[0])
+    products = products_for_sequences(tval_possibilities[0], tval_possibilities[1])
 
     graph(products)
