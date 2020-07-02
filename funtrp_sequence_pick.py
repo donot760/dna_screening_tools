@@ -6,8 +6,11 @@ Created on Mon Jun 29 12:44:50 2020
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import csv
+import sys
+plotting = "--noplot" not in sys.argv
+if plotting:   
+    import matplotlib.pyplot as plt
 
 def list_files(directory):
     pass
@@ -130,10 +133,10 @@ def products_for_sequences(list_of_sequences, residues):
     
     return list_of_sequences
 
-def graph(sequence_products):
-    
-    plt.plot(range(len(sequence_products)), sequence_products)
-    plt.show()
+if plotting:
+    def graph(sequence_products):
+        plt.plot(range(len(sequence_products)), sequence_products)
+        plt.show()
     
 #def filter_(threshold, final_products):
 #    copied = final_products.copy()
@@ -152,4 +155,5 @@ if __name__ == '__main__':
     tval_possibilities = create_possible_sequences(shifted_values, r_t[0])
     products = products_for_sequences(tval_possibilities[0], tval_possibilities[1])
 
-    graph(products)
+    if plotting:
+        graph(products)
