@@ -14,11 +14,11 @@ def list_files(directory):
 #    os.chdir(directory)
     current_dir = os.getcwd()
 
-    new_dir = os.chdir(os.getcwd() + "/../funtrp_results/")#goes up a directory to access funtrp results 
-    csv_files = os.listdir(new_dir)#gets all the csv files
-
-
-    return os.getcwd(), csv_files[2:]#first two items are not csv files
+    new_dir = "resources/select_agent_hazard/funtrp_results/"
+    os.chdir(new_dir)
+    csv_files = [fname for fname in os.listdir() if fname.split('.')[-1] == 'csv'] # gets all the files in new_dir with a .csv extension
+    os.chdir(current_dir) # back to original directory to access output text file without convoluted relative paths
+    return new_dir, csv_files
 
 def residue_and_toggles(filename):
     untouched_toggles = []
@@ -94,12 +94,12 @@ def create_possible_sequences(residues, toggles, rheos, neutrals, window = 19):
 #    print(filtered_sequence)
     
     string_list = []
-    with open("aa_fragment_picks.txt","w+") as f:
+    with open("resources/aa_fragment_picks.txt","w+") as f:
         for sequence in filtered_sequence:
             f.write("{}\r\n".format(sequence))
     
     
-    with open("aa_fragment_picks.txt","r") as f:
+    with open("resources/aa_fragment_picks.txt","r") as f:
         lines = f.readlines()
 #        print(lines)
     
@@ -112,7 +112,7 @@ def create_possible_sequences(residues, toggles, rheos, neutrals, window = 19):
         string_list.append(new_string)
 #    print(string_list)
 
-    with open("aa_fragment_picks.txt","w+") as f:
+    with open("resources/aa_fragment_picks.txt","w+") as f:
         for string in string_list:
             f.write("{}\r\n".format(string))
    
