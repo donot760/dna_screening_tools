@@ -26,6 +26,8 @@ def multiple_of_3(reading_frame):
     remainder = len(reading_frame)%3
     
     return reading_frame[:len(reading_frame)-remainder]
+    
+
 
 def get_dna(fname):     
     with open(fname, "r") as f:
@@ -36,13 +38,20 @@ def get_dna(fname):
         whole_sequence = "".join(line_list)
         whole_sequence = whole_sequence.replace('\n', '')
     
-    reading_frame_1 = multiple_of_3(Seq(whole_sequence))
-    reading_frame_2 = multiple_of_3(Seq(whole_sequence[1:]))
-    reading_frame_3 = multiple_of_3(Seq(whole_sequence[2:]))
+    #reading_frame_1 = multiple_of_3(Seq(whole_sequence))
+    ##reading_frame_2 = multiple_of_3(Seq(whole_sequence[1:]))
+    #reading_frame_3 = multiple_of_3(Seq(whole_sequence[2:]))
+
     
+    return Seq(whole_sequence)
     
+def reading_frame(whole_seq):
+    reading_frame_1 = multiple_of_3(whole_seq)
+    reading_frame_2 = multiple_of_3(whole_seq[1:])
+    reading_frame_3 = multiple_of_3(whole_seq[2:])
     
-    return reading_frame_1, reading_frame_2, reading_frame_3
+    return reading_frame_1, reading_frame_2, reading_frame_3 
+
 
 
 def make_codons(sequence):
@@ -137,12 +146,13 @@ if __name__ == '__main__':
         print(fna)
         combined_frame = ''
         sequence = get_dna(fna)
+        frames = reading_frame(sequence)
         print("in the file")
-        translated_1 = sequence[0].translate()
+        translated_1 = frames[0].translate()
         print('frame 1: ' + translated_1[:10])
-        translated_2 = sequence[1].translate()
+        translated_2 = frames[1].translate()
         print('frame_2: ' + translated_2[:10])
-        translated_3 = sequence[2].translate()
+        translated_3 = frames[2].translate()
         print('frame_3: ' + translated_3[:10])
         combined_frame += translated_1 + translated_2 + translated_3
          
