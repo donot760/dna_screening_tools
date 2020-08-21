@@ -15,6 +15,12 @@ def get_all_files():
         if file_.split(".")[-1] == "fna":
             files.append(os.path.join(genbank_path, file_))
     return files[:3]
+
+def get_all_files_gen():
+    files = []
+    for file_ in os.listdir(genbank_path):
+        if file_.split(".")[-1] == "fna":
+            yield os.path.join(genbank_path, file_)
     
 def multiple_of_3(reading_frame):
     remainder = len(reading_frame)%3
@@ -65,6 +71,14 @@ def make_amino_acids(codons):
     
     return amino_acids
     
+def aa_windows_generator(amino_acids, window = 19):
+    windows = []
+    for index in range(len(amino_acids)):
+        if index + window <= len(amino_acids):
+            #element = windows.append(amino_acids[index:index+window])
+            yield amino_acids[index:index+window]
+            
+    
 def aa_windows(amino_acids, window = 19):
     windows = []
     for index in range(len(amino_acids)):
@@ -77,7 +91,7 @@ def make_protein_seq(amino_acids): #aa is for now, should be codons
   
     methionine_indexes = []#list that holds the indexes for every methionine
     stop_indexes = []#holds indexes for every STOP
-    for index in range(len(amino_acids)):
+    for index in range(len(amino_acisds)):
         if amino_acids[index] == "M":
             methionine_indexes.append(index)
         if amino_acids[index] == "*":
@@ -97,29 +111,32 @@ def make_protein_seq(amino_acids): #aa is for now, should be codons
 if __name__ == '__main__':
     
     #################now does it all work with the file??
-    windows_from_frames = {}
-    sequence = get_dna("resources/GCF_000008865.2_ASM886v2_genomic.fna")
-    # for index in range(len(sequence)):
-    #     windows_from_frames.update({"sequence number: {}".format(index+1): aa_windows(sequence[index].translate())})
-    seq_1 = "FVSSAGYSSTVFYGDRKVT"   
-    seq_2 = "DPCLSPCTKLKSKWIKDLH"
+    #print("hi")
+    #sequence = get_dna("resources/GCF_000008865.2_ASM886v2_genomic.fna")
+    #trnsltd_seq_1 = sequence[0].translate()
+    
+    #seq_1 = "FVSSAGYSSTVFYGDRKVT"   
+    #seq_2 = "DPCLSPCTKLKSKWIKDLH"
+    
+    #first_frame = aa_windows_generator(trnsltd_seq_1) 
+    #for window in first_frame:
+    #    print(window)
+    
+    
     #whole_thing = ''
     #for reading_frame in sequence:
     #    translated_frame = reading_frame.translate()
     #    whole_thing += translated_frame
     #windows = aa_windows(whole_thing)
     #window_set = set(windows)
-    #print(seq_1 in window_set)
-    #print(seq_2 in window_set)
-    #files_and_sequences = {}
     ###############################################doing it with the set
     
-    for fna in get_all_files():
+    for fna in get_all_files_gen():
         
      
         print(fna)
         combined_frame = ''
-        sequence_ = get_dna(fna)
+        sequence = get_dna(fna)
         print("in the file")
         translated_1 = sequence[0].translate()
         print('frame 1: ' + translated_1[:10])
@@ -130,15 +147,19 @@ if __name__ == '__main__':
         combined_frame += translated_1 + translated_2 + translated_3
          
         
-        windows = aa_windows(combined_frame)
-        window_set = set(windows)
+        windows = aa_windows_generator(combined_frame)
+        #print(next(windows))
+        #print(next(windows))
+        #print(next(windows))
+        for ele in windows:
+            print(ele)
        
-        
-       
-        print(seq_1 in window_set)
-        print(seq_2 in window_set)
+        #print(seq_1 in window_set)
+        #print(seq_2 in window_set)
         
     #####################################################
+    
+
     
             
    
