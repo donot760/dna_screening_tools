@@ -52,7 +52,8 @@ if __name__ == '__main__':
 
         neutral_windows, toggle_windows, rheo_windows = \
                 [windows_to_floats(col) for col in float_cols]
-        product_scores = [np.product(np.array(toggle_window) + .3) for toggle_window in toggle_windows]
+        product_scores = [np.product(np.array(toggle_window) + .3)
+                for toggle_window in toggle_windows]
         packed_frag_values = {frag:(score, (neutral_window, toggle_window, rheo_window))
               for frag, score, neutral_window, toggle_window, rheo_window
               in zip(fragments, product_scores, neutral_windows, toggle_windows, rheo_windows)}

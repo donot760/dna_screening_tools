@@ -119,17 +119,17 @@ def create_possible_sequences(residues, toggles, rheos, neutrals, window = 19):
         
     return possible_tval_sequences, possible_residue_sequences
 
-#def products_for_sequences(list_of_sequences, residues):
-#    
-#    for index in range(len(list_of_sequences)):
-#        list_of_sequences[index] = np.prod(list_of_sequences[index])#get the product for each sequence
-#        
-#    return list_of_sequences
+def products_for_sequences(list_of_sequences, residues):
+    
+    for index in range(len(list_of_sequences)):
+        list_of_sequences[index] = np.prod(list_of_sequences[index])#get the product for each sequence
+        
+    return list_of_sequences
 
-#def graph(sequence_products):
-#    
-#    plt.plot(range(len(sequence_products)), sequence_products)
-#    plt.show()
+def graph(sequence_products):
+    
+    plt.plot(range(len(sequence_products)), sequence_products)
+    plt.show()
     
 
     
@@ -148,6 +148,6 @@ if __name__ == '__main__':
 #    r_t = residue_and_toggles(os.getcwd() + "/../funtrp_results/NP_042046_funtrp.csv")
 #    shifted_values = (shift_toggles(r_t[1], .3))
         tval_possibilities = create_possible_sequences(r_t[0], r_t[1] ,r_t[2], r_t[3])
-#    products = products_for_sequences(tval_possibilities[0], tval_possibilities[1])
+    products = products_for_sequences(tval_possibilities[0], tval_possibilities[1])
     
-#    graph(products)
+    graph(products)
