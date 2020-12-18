@@ -3,9 +3,11 @@ import os
 import sys
 from Bio.Seq import Seq
 from ecoli_seq_variants import single_variants
+from metro_hastings_variants import MetroHastingsVariants
+from funtrp_blosum_predict import parse_funtrp_line
 
-script = __name__ == '__main__'
-if script and len(sys.argv) < 2:
+running_as_script = __name__ == '__main__'
+if running_as_script and len(sys.argv) < 2:
     print('must supply output file path')
     exit()
 
@@ -21,24 +23,30 @@ for dir_entry in os.listdir(genbank_path):
         genbank_set.update(json.loads(f.read()))
 print('done')
 
-if script:
+if running_as_script:
     hazard_set = []
     print('generating and filtering variants...')
     with open('resources/aa_fragment_picks.txt') as f:
-        for aa_frag in f:
-            aa_frag = aa_frag.strip()
-            if not aa_frag:
+        for funtrp_line in f:
+            funtrp_line = funtrp_line.strip()
+            if not funtrp_line:
                 continue
-            for variant in single_variants(aa_frag): # includes original (zero-variant) too
-                variant_aa_frag = str(Seq(variant).translate())
-                if variant_aa_frag in genbank_set:
-                    print('not including', variant_aa_frag)
+            aa_frag, ntr_triples = parse_funtrp_line(funtrp_line)
+            single_variant_set = set((str(Seq(v).translate()) for v in single_variants(aa_frag)))
+            #print('num single variants:', len(single_variant_set))
+            variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, 10000)
+            all_variants = single_variant_set | variant_computer.result_set()
+            #print('num Metro-Hastings variants:', len(variant_computer.result_set()))
+            for variant in all_variants: # includes original (zero-variant) too
+                variant = str(variant)
+                if variant in genbank_set:
+                    print('not including', variant)
                     continue
-                hazard_set.append(variant_aa_frag)
+                hazard_set.append(variant)
     print('done')
 
     print('writing output...')
     with open(output_path, 'w+') as f:
-        f.write(json.dumps(hazard_set))
+        f.write(json.dumps(hazard_set, indent=2))
     print('done')
 

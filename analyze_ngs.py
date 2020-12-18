@@ -3,20 +3,22 @@ from Bio.Seq import Seq
 import pdb
 import csv
 import os
+import sys
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 from random import sample, random
 
 from ecoli_seq_variants import single_variants
-from bar_plot_replacements import int_encode_variant
-from bar_plot_replacements import replace_mtx as yanyeg_replace_mtx # TODO: generalize
+from funtrp_blosum_predict import fragment_replace_mtx
+from metro_hastings_variants import int_encode_variant
 from fastq_counting import fastq_fragment_counts
 
 data_dir = os.path.join('resources', 'NGS', '6_27_DSS_libs_round1')
 #file_names = ["ESP7xLib14-preselection-miniprep.fastq"]
 file_names = ["ESP7xLib14-postselection-phage.fastq"]
 #file_names = ["ESP7xLib14-preselection-miniprep.fastq", "ESP7xLib14-postselection-phage.fastq"]
+fragment = sys.argv[sys.argv.index('--fragment')+1] if '--fragment' in sys.argv else 'YANYEGCLWNATGVVVCTG'
 
 ## Read the fastq files. Count the total number of sequences
 all_data = {}
@@ -85,7 +87,7 @@ def load_all_vars_and_transs():
     all_transs = set((translate(var) for var in all_vars))
     with open('/Users/danagretton/Dropbox (MIT)/Sculpting Evolution/DNA Sequence Validation/Screening M13/Quotes Round 2/original_fragment_map.json') as f:
         original_fragments = json.loads(f.read())
-    all_transs = set((v for v in all_transs if v == 'YANYEGCLWNATGVVVCTG' or original_fragments.get(v, None) == 'YANYEGCLWNATGVVVCTG'))
+    all_transs = set((v for v in all_transs if v == fragment or original_fragments.get(v, None) == fragment))
     print('number of transs:', len(all_transs))
 
 def windows(seq):
@@ -147,9 +149,9 @@ def add_single_read(single_read):
             return
     count_is_other += 1
 
-def variant_log_prob(variant): # TODO: generalize to any original fragment
-    replace_mtx = yanyeg_replace_mtx
-    log_replace_mtx = np.log(replace_mtx)
+replace_mtx = fragment_replace_mtx(fragment)
+log_replace_mtx = np.log(replace_mtx)
+def variant_log_prob(variant):
     return sum((log_replace_mtx[i,j] for j, i in enumerate(int_encode_variant(variant))))
 
 def percent(c, denom=num_entries):
@@ -171,6 +173,7 @@ def get_counts(fnames):
         return counts
 
 if __name__ == '__main__':
+    print('Fragment:' + fragment)
     #load_all_data()
     #count_translations()
     load_all_vars_and_transs()
@@ -215,7 +218,7 @@ if __name__ == '__main__':
     ys = [np.exp(variant_log_prob(var)) for var in plot_variants]
     plt.scatter(xs, ys)
     for var, x, y in zip(plot_variants, xs, ys):
-        label = var + ": {:.5f}".format(x) + (' (WILD TYPE)' if var == 'YANYEGCLWNATGVVVCTG' else '')
+        label = var + ": {:.5f}".format(x) + (' (WILD TYPE)' if var == fragment else '')
 
         # this method is called for each point
         plt.annotate(label, # this is the text

@@ -1,7 +1,6 @@
 import os
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
 
 FUNTRP_DATA_DIR = os.path.join('resources', 'select_agent_hazard', 'funtrp_results')
 

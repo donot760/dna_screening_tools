@@ -1,11 +1,13 @@
 import numpy as np
 from ecoli_seq_variants import all_aminos
 from funtrp_blosum_predict import (
-    fragment_replace_mtx,
-    parse_funtrp_line,
+    fragment_replace_mtx
     )
 
 num_aminos = len(all_aminos)
+
+def int_encode_variant(variant):
+    return tuple((all_aminos.index(c) for c in variant))
 
 class MetroHastingsVariants:
     def __init__(self, fragment, funtrp_triples, result_set_size):
@@ -21,7 +23,7 @@ class MetroHastingsVariants:
         self.result_set_size = result_set_size
 
     def int_encode_variant(self, variant):
-        return tuple((all_aminos.index(c) for c in variant))
+        return int_encode_variant(variant)
 
     def score_frag(self, coded_frag):
         if coded_frag in self.variant_scores:
@@ -64,7 +66,7 @@ class MetroHastingsVariants:
         # iterations: number of accepted to generated
         # acceptance_rule(x,x_new): decides whether to accept or reject the new sample
         if self.best_variants:
-            return [], []
+            raise RuntimeError("MetroHastingsVariants can only be run once")
         x = self.orig_coded_frag
         accepted = []
         rejected = []
@@ -78,15 +80,16 @@ class MetroHastingsVariants:
                 x = x_new
                 if steps_since_added < min_interval:
                     continue
-                if x_new not in self.best_variants:
+                decoded_var = self.decode_variant(x_new)
+                if decoded_var not in self.best_variants:
                     accepted.append(x_new)
                     steps_since_added = 0
                     for j, i in enumerate(x_new):
                         self.hist[i, j] += 1
-                self.best_variants.add(x_new)
+                self.best_variants.add(decoded_var)
             else:
                 rejected.append(x_new)
-        return np.array(accepted), np.array(rejected)
+        return np.array(accepted), np.array(rejected) # primarily to debug if needed
 
     def result_set(self):
         if not self.best_variants:
