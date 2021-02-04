@@ -14,7 +14,7 @@ if running_as_script and len(sys.argv) < 2:
 output_path = sys.argv[-1]
 known_seq_path = os.path.join('resources', 'known_seqs')
 
-# Locally, the known-sequence set fits in memory. On the cloud, it's potentially terabytes.
+# Locally, the known-sequence set fits in memory. On the cloud, it's potentially terabytes, and is built and run totally differently.
 running_on_cloud = '--cloud' in sys.argv
 if running_on_cloud:
     if not running_as_script:
@@ -63,6 +63,8 @@ if running_as_script:
 
         approx_batch_size = 8e6 # a few dozen megabytes at a time
         hazard_set = frozenset(hazard_set)
+        with open('.' + output_path + '_temp', 'w+') as f:
+            f.write(json.dumps(hazard_set, indent=2)) #TODO: do we want to be generating this temp file every time?
 
         def known_seqs_in_hazard_set(known_seq_fname):
             from Bio import SeqIO
@@ -78,7 +80,6 @@ if running_as_script:
             return intersect_set
 
         with multiprocessing.Pool(processes=cpus) as pool:
-
             known_hazard_seqs = set.union(pool.imap_unordered(known_seqs_in_hazard_set, os.listdir(known_seq_path)))
         hazard_set = hazard_set - known_hazard_seqs
 

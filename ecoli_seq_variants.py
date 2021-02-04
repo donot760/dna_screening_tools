@@ -2,9 +2,6 @@ import os
 from itertools import product, zip_longest
 from Bio.Seq import Seq
 
-with open(os.path.join('resources', 'm13.seq')) as f:
-    m13 = f.read()
-
 ecoli_codons = {
 'A': 'gcg',
 'R': 'cgc',
@@ -157,6 +154,11 @@ def single_variants(aa_seq_in, orig_dna_seq=None, annotations=None, padding=0):
     return unique(variants)
 
 if __name__ == '__main__':
+    try:
+        with open(os.path.join('resources', 'm13.seq')) as f:
+            m13 = f.read()
+    except FileNotFoundException:
+        m13 = None
     aa_fragment = 'NSPLMNNFRQYLPSLPQSV'
     neutral_replacements = {
         (0, 'N'): ['T', 'S'],
