@@ -10,15 +10,20 @@ import matplotlib.pyplot as plt
 from random import sample, random
 
 from ecoli_seq_variants import single_variants
-from funtrp_blosum_predict import fragment_replace_mtx
+from funtrp_blosum_predict import funtrp_line_to_mtx
 from metro_hastings_variants import int_encode_variant
 from fastq_counting import fastq_fragment_counts
+
+sys.path.append('resources/NGS/2020_12_10_synthesis_screening_lib_12')
+from brian_data_frame import df as brian_data_20201210
+from brian_data_frame import wt_protein as brian_fragment_20201210
 
 data_dir = os.path.join('resources', 'NGS', '6_27_DSS_libs_round1')
 #file_names = ["ESP7xLib14-preselection-miniprep.fastq"]
 file_names = ["ESP7xLib14-postselection-phage.fastq"]
 #file_names = ["ESP7xLib14-preselection-miniprep.fastq", "ESP7xLib14-postselection-phage.fastq"]
-fragment = sys.argv[sys.argv.index('--fragment')+1] if '--fragment' in sys.argv else 'YANYEGCLWNATGVVVCTG'
+fragment = sys.argv[sys.argv.index('--fragment')+1] if '--fragment' in sys.argv else brian_fragment_20201210
+# 'YANYEGCLWNATGVVVCTG'
 
 ## Read the fastq files. Count the total number of sequences
 all_data = {}
@@ -149,7 +154,21 @@ def add_single_read(single_read):
             return
     count_is_other += 1
 
-replace_mtx = fragment_replace_mtx(fragment)
+baked_funtrp_lines = { # idea is to prevent accidentally redefining the fragment without using the correct funtrp scores
+    'YANYEGCLWNATGVVVCTG':'YANYEGCLWNATGVVVCTG [0.13, 0.13, 0.2, 0.22, 0.38, 0.01, 0.09, 0.11, 0.14, 0.19, 0.16, 0.13, 0.09, 0.13, 0.14, 0.11, 0.12, 0.18, 0.37] [0.2, 0.19, 0.32, 0.14, 0.08, 0.69, 0.21, 0.04, 0.33, 0.21, 0.31, 0.17, 0.17, 0.23, 0.07, 0.08, 0.18, 0.08, 0.1] [0.67, 0.68, 0.48, 0.64, 0.54, 0.3, 0.7, 0.85, 0.53, 0.6, 0.53, 0.7, 0.74, 0.64, 0.79, 0.81, 0.7, 0.74, 0.53]',
+    'PQSVECRPFVFGAGKPYEF':'PQSVECRPFVFGAGKPYEF [0, 0.3, 0.01, 0, 0.13, 0.03, 0.02, 0.03, 0.03, 0, 0.04, 0.02, 0.23, 0, 0.8, 0.76, 0.06, 0.14, 0] [0.89, 0.16, 0.62, 0.93, 0.55, 0.88, 0.67, 0.43, 0.95, 0.78, 0.57, 0.47, 0.16, 0.83, 0.07, 0.03, 0.34, 0.42, 0.89] [0.11, 0.54, 0.37, 0.07, 0.32, 0.09, 0.31, 0.54, 0.02, 0.22, 0.39, 0.51, 0.61, 0.17, 0.13, 0.21, 0.6, 0.44, 0.11]',
+    'TKGDVENFSSLKKDVVIRV':'TKGDVENFSSLKKDVVIRV [0.49, 0.82, 0.17, 0.47, 0.77, 0.97, 0.86, 0.42, 0.44, 0.86, 0.43, 0.92, 0.69, 0.88, 0.57, 0.54, 0.57, 0.34, 0.59] [0.1, 0.11, 0.29, 0.23, 0.01, 0.0, 0.07, 0.11, 0.1, 0.02, 0.07, 0.03, 0.21, 0.09, 0.09, 0.06, 0.05, 0.12, 0.13] [0.41, 0.07, 0.54, 0.3, 0.22, 0.03, 0.07, 0.47, 0.46, 0.12, 0.5, 0.05, 0.1, 0.03, 0.34, 0.4, 0.38, 0.54, 0.28]'
+    }
+
+SWAPPED_PQSV = 'PQSVECRPFVFGAGKPYEF [0.89, 0.16, 0.62, 0.93, 0.55, 0.88, 0.67, 0.43, 0.95, 0.78, 0.57, 0.47, 0.16, 0.83, 0.07, 0.03, 0.34, 0.42, 0.89] [0.11, 0.54, 0.37, 0.07, 0.32, 0.09, 0.31, 0.54, 0.02, 0.22, 0.39, 0.51, 0.61, 0.17, 0.13, 0.21, 0.6, 0.44, 0.11] [0, 0.3, 0.01, 0, 0.13, 0.03, 0.02, 0.03, 0.03, 0, 0.04, 0.02, 0.23, 0, 0.8, 0.76, 0.06, 0.14, 0]' # this has NTR all swapped around and it's broken!
+# REMOVE ME!! Adding a swap to make sure it breaks~
+# note: yes, it decreased in performance, though it still somehow kind of worked?
+#baked_funtrp_lines['PQSVECRPFVFGAGKPYEF'] = SWAPPED_PQSV
+# REMOVE ME!! Adding a different kind of swap to make sure it breaks~
+# note: yes, it totally broke. Did not perform above chance, perfect diagonal line on ROC
+#baked_funtrp_lines['PQSVECRPFVFGAGKPYEF'] = baked_funtrp_lines['YANYEGCLWNATGVVVCTG']
+
+replace_mtx = funtrp_line_to_mtx(baked_funtrp_lines[fragment])
 log_replace_mtx = np.log(replace_mtx)
 def variant_log_prob(variant):
     return sum((log_replace_mtx[i,j] for j, i in enumerate(int_encode_variant(variant))))
@@ -176,59 +195,110 @@ if __name__ == '__main__':
     print('Fragment:' + fragment)
     #load_all_data()
     #count_translations()
-    load_all_vars_and_transs()
+    #load_all_vars_and_transs()
     import matplotlib.pyplot as plt
 
     #for single_read in all_data["ESP7xLib14-postselection-phage.fastq"]:
     #    add_single_read(single_read)
-
-    ngs_dir = os.path.join('resources', 'NGS', '20200810 Genewiz Results', 'Flattened and Expanded NGS Results')
-    pre_counts = get_counts([os.path.join(ngs_dir, '30-395819904__00_fastq__22-7-24_R1_001.fastq'), os.path.join(ngs_dir, '30-395819904__00_fastq__22-7-24_R2_001.fastq')])
-    post_counts = get_counts(['/Users/danagretton/Dropbox (MIT)/Sculpting Evolution/Dev/dna_screening_tools/resources/NGS/6_27_DSS_libs_round1/ESP7xLib14-postselection-phage.fastq'])
-    xs = []
-    ys = []
-    #for trans in set(pre_counts) | set(post_counts):
-    for trans in all_transs:
-        #if trans in pre_counts and trans in post_counts:
-        #    xs.append(pre_counts[trans])
-        #    ys.append(post_counts[trans])
-        x = pre_counts.get(trans, 0)
-        y = post_counts.get(trans, 0)
-        if x > 140000 and 100 < y < 6000:
-            print(trans)
-        if x > 0 and y > 0:
-            print(trans)
-        if x + y > 500:
-            xs.append(x)
-            ys.append(y)# + random()*.15)
-    import matplotlib.pyplot as plt
-    #plt.scatter(xs, ys)
-    #plt.show()
-
-    plot_variants = []
-    for i, var in enumerate(post_counts):
-        if '*' in var:
+    bd = brian_data_20201210
+    print(bd.keys())
+    variants = bd['protein'] #[:10000]
+    pred_fitnesses = [variant_log_prob(variant) for variant in variants]
+    meas_fitnesses = [bd.loc[bd['protein'] == variant, 'log_fold_enrichment_4'].item() for variant in variants]
+    for measf in sorted(meas_fitnesses):
+        if measf not in (float('nan'), float('-inf')):
+            min_meas = measf; break
+    #min_meas = np.nanmin(np.array(meas_fitnesses))
+    max_meas = np.nanmax(np.array(meas_fitnesses))
+    print('range of measurements:', min_meas, 'to', max_meas)
+    plt.scatter(pred_fitnesses, meas_fitnesses)
+    plt.figure()
+    print('num variants:', len(variants))
+    for min_fitness_i in range(5):
+        min_fitness = min_fitness_i/5*(max_meas - min_meas) + min_meas
+        min_fitness = 0 #TODO: this disables the above calculation. remove
+        actual_positives = set()
+        actual_negatives = set()
+        for variant, pf, mf in zip(variants, pred_fitnesses, meas_fitnesses):
+            if mf > min_fitness:
+                actual_positives.add(variant)
+            else:
+                actual_negatives.add(variant)
+        if len(actual_positives) * len(actual_negatives) == 0: # avoid errors, uninformative anyway
+            print('skipped min_fitness', min_fitness)
             continue
-        if var not in pre_counts:
-            continue
-        plot_variants.append(var)
-    pre_norm = sum(pre_counts.values())
-    post_norm = sum(post_counts.values())
-    xs = [np.log(post_counts[var]/post_norm/(pre_counts.get(var, 1)/pre_norm)) for var in plot_variants]
-    ys = [np.exp(variant_log_prob(var)) for var in plot_variants]
-    plt.scatter(xs, ys)
-    for var, x, y in zip(plot_variants, xs, ys):
-        label = var + ": {:.5f}".format(x) + (' (WILD TYPE)' if var == fragment else '')
-
-        # this method is called for each point
-        plt.annotate(label, # this is the text
-                     (x,y), # this is the point to label
-                     textcoords="offset points", # how to position the text
-                     xytext=(0,10), # distance from text to points (x,y)
-                     ha='center') # horizontal alignment can be left, right or center
+        print('num real positives:', len(actual_positives))
+        min_s = min(pred_fitnesses)
+        max_s = max(pred_fitnesses)
+        s_res = 100
+        xs = []
+        ys = []
+        for s_i in range(s_res):
+            s = s_i/s_res*(max_s - min_s) + min_s
+            positives = set()
+            for variant, pf, mf in zip(variants, pred_fitnesses, meas_fitnesses):
+                if pf > s:
+                    positives.add(variant)
+            true_positives = positives & actual_positives
+            false_positives = positives & actual_negatives
+            tp_rate = len(true_positives)/len(actual_positives)
+            fp_rate = len(false_positives)/len(actual_negatives)
+            xs.append(fp_rate)
+            ys.append(tp_rate)
+        print(len(xs))
+        print(len(ys))
+        plt.plot(xs, ys)
+        break # TODO: this makes it only run once. remove
     plt.show()
 
-    import pdb; pdb.set_trace()
+    if False:
+        ngs_dir = os.path.join('resources', 'NGS', '20200810 Genewiz Results', 'Flattened and Expanded NGS Results')
+        pre_counts = get_counts([os.path.join(ngs_dir, '30-395819904__00_fastq__22-7-24_R1_001.fastq'), os.path.join(ngs_dir, '30-395819904__00_fastq__22-7-24_R2_001.fastq')])
+        post_counts = get_counts(['/Users/danagretton/Dropbox (MIT)/Sculpting Evolution/Dev/dna_screening_tools/resources/NGS/6_27_DSS_libs_round1/ESP7xLib14-postselection-phage.fastq'])
+        xs = []
+        ys = []
+        #for trans in set(pre_counts) | set(post_counts):
+        for trans in all_transs:
+            #if trans in pre_counts and trans in post_counts:
+            #    xs.append(pre_counts[trans])
+            #    ys.append(post_counts[trans])
+            x = pre_counts.get(trans, 0)
+            y = post_counts.get(trans, 0)
+            if x > 140000 and 100 < y < 6000:
+                print(trans)
+            if x > 0 and y > 0:
+                print(trans)
+            if x + y > 500:
+                xs.append(x)
+                ys.append(y)# + random()*.15)
+        import matplotlib.pyplot as plt
+        #plt.scatter(xs, ys)
+        #plt.show()
+
+        plot_variants = []
+        for i, var in enumerate(post_counts):
+            if '*' in var:
+                continue
+            if var not in pre_counts:
+                continue
+            plot_variants.append(var)
+        pre_norm = sum(pre_counts.values())
+        post_norm = sum(post_counts.values())
+        xs = [np.log(post_counts[var]/post_norm/(pre_counts.get(var, 1)/pre_norm)) for var in plot_variants]
+        ys = [np.exp(variant_log_prob(var)) for var in plot_variants]
+        plt.scatter(xs, ys)
+        for var, x, y in zip(plot_variants, xs, ys):
+            label = var + ": {:.5f}".format(x) + (' (WILD TYPE)' if var == fragment else '')
+
+            # this method is called for each point
+            plt.annotate(label, # this is the text
+                         (x,y), # this is the point to label
+                         textcoords="offset points", # how to position the text
+                         xytext=(0,10), # distance from text to points (x,y)
+                         ha='center') # horizontal alignment can be left, right or center
+        plt.show()
+
+        import pdb; pdb.set_trace()
 
     #print(percent(count_is_wt), percent(count_is_exact), percent(count_is_aa_match), percent(count_is_other))
     #print('total:', percent(count_is_wt + count_is_exact + count_is_aa_match + count_is_other))
