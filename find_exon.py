@@ -4,7 +4,7 @@ import time
 
 #from Bio.Alphabet import ExtendedIUPACProtein
 
-genbank_path = os.path.join('resources', 'genbank')
+genbank_path = os.path.join('resources', 'known_seqs')
 
 
 def get_all_files():
