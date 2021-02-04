@@ -1,5 +1,5 @@
 *
-!genbank
+!known_seqs
 !hazard_db
 !select_agent_hazard
 !.gitignore
