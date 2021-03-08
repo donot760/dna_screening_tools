@@ -35,6 +35,8 @@ else:
             known_seq_set.update(json.loads(f.read()))
     print('done')
 
+original_frags = set()
+
 if running_as_script:
     hazard_set = []
     print('generating and filtering variants...')
@@ -49,6 +51,7 @@ if running_as_script:
             if not funtrp_line:
                 continue
             aa_frag, ntr_triples = parse_funtrp_line(funtrp_line)
+            original_frags.add(aa_frag)
             single_variant_set = set((str(Seq(v).translate()) for v in single_variants(aa_frag)))
             #print('num single variants:', len(single_variant_set))
             variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, 1000000)
@@ -67,10 +70,23 @@ if running_as_script:
 
     if running_on_cloud:
 
-        def split_into_windows(str_in, window=19):
-            for i in range(len(str_in)):
-                if i + window <= len(str_in):
-                    yield str_in[i:i+window]
+        def split_into_windows(str_in):
+            if not set(str_in.lower()) - set('atcg \t\n'): # if it's DNA:
+                if False: # enable in the future when actually screening DNA
+                    for i in range(len(str_in)):
+                        if i + 42 <= len(str_in):
+                            yield str_in[i:i+42]
+                seq = Seq(str_in)
+                for sense in seq, seq.reverse_complement():
+                    for frame_offset in range(3):
+                        frame = str(sense[frame_offset:].translate())
+                        for i in range(len(frame)):
+                            if i + 19 <= len(frame):
+                                yield frame[i:i+19]
+            else: # it's a protein/translation
+                for i in range(len(str_in)):
+                    if i + 19 <= len(str_in):
+                        yield str_in[i:i+19]
 
         approx_batch_size = 8 # a few dozen megabytes at a time
         hazard_set = frozenset(hazard_set)
@@ -81,7 +97,7 @@ if running_as_script:
             #from Bio import SeqIO
             #window_batch = set()
             intersect_set = set()
-            seq = ''
+            seq_list = []
             #for record in SeqIO.parse(known_seq_fname, "fasta"): # potentially many GBs
             skipping = False
             with open(known_seq_fname) as f: # potentially many GBs
@@ -89,27 +105,22 @@ if running_as_script:
                     if not line:
                         continue
                     if line[0] == '>':
-                        #window_batch.update(split_into_windows(seq))
+                        seq = ''.join(seq_list)
                         for window in split_into_windows(seq):
                             if window in hazard_set:
                                 intersect_set.add(window)
-                        #if len(window_batch) > approx_batch_size:
-                        #    intersect_set.update(window_batch & hazard_set)
-                        #    window_batch = set()
-                        #    if intersect_set:
-                        #        print(known_seq_fname + ':', intersect_set)
                         line = line.lower()
                         skipping = any(sciname in line for sciname in hazard_scinames) # go to skip mode to skip over the following sequence
-                        seq = ''
+                        seq_list = []
                         continue
                     if skipping:
                         continue
-                    seq += line.strip()
+                    seq_list.extend(line.strip())
             # don't forget leftover/partially complete items
-            #window_batch.update(split_into_windows(seq))
-            #intersect_set.update(window_batch & hazard_set)
+            seq = ''.join(seq_list)
             for window in split_into_windows(seq):
                 if window in hazard_set:
+                    print(window, '<- that window was present')
                     intersect_set.add(window)
             if intersect_set:
                 print(known_seq_fname + ':', intersect_set)
@@ -125,7 +136,7 @@ if running_as_script:
         print('removing', len(known_hazard_seqs), 'known hazard sequence fragment(s)')
         if len(known_hazard_seqs) < 100:
             print(known_hazard_seqs)
-        hazard_set = hazard_set - known_hazard_seqs
+        hazard_set = (hazard_set - known_hazard_seqs) | original_frags
         print('final size of hazard set:', len(hazard_set))
 
     print('writing output...')
