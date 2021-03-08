@@ -8,12 +8,20 @@ from metro_hastings_variants import MetroHastingsVariants
 from funtrp_blosum_predict import parse_funtrp_line
 
 running_as_script = __name__ == '__main__'
+known_seq_path = os.path.join('resources', 'known_seqs')
 if running_as_script and len(sys.argv) < 2:
-    print('must supply output file path')
+    print('must supply output file path as last argument')
+    print('options:\n\t--cloud: run with thread pool and possibly large db'
+          '\n\t--known-seq-path: path to find database of known sequences to be'
+          ' pre-screened out of the hazard variants database. default: '
+          + known_seq_path)
     exit()
 
 output_path = sys.argv[-1]
-known_seq_path = os.path.join('resources', 'known_seqs')
+try:
+    known_seq_path = sys.argv[sys.argv.index('--known-seq-path') + 1]
+except ValueError:
+    pass
 
 start_time = time.time()
 
@@ -24,6 +32,7 @@ if running_on_cloud:
         raise NotImplementedError('the --cloud option is currently only designed to work when running as a script.')
     import multiprocessing
     cpus = multiprocessing.cpu_count()
+    print('using', cpus, 'cores.')
 else:
     # create the known_seq_set as an importable module-level variable (not cloud-scale)
     known_seq_set = set()
