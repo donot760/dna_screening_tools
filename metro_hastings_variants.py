@@ -37,9 +37,16 @@ class MetroHastingsVariants:
 
     # Metropolis-Hastings from https://towardsdatascience.com/from-scratch-bayesian-inference-markov-chain-monte-carlo-and-metropolis-hastings-in-python-ef21a29e25a
     # The transition model defines how to move from the current fragment to a new fragment
-    def transition_model(self, x): # randomly mutate one amino acid.
-        idx = np.random.choice(range(self.num_frag_aas))
-        return x[:idx] + (np.random.choice(range(num_aminos)),) + x[idx + 1:]
+    def transition_model(self, x, # randomly mutate one amino acid.
+            idx_choices=[], # make fewer objects by creating local variables
+            amino_choices=np.array(range(num_aminos))):
+        if not idx_choices:
+            idx_choices.append(np.array(range(self.num_frag_aas)))
+        idx = np.random.choice(idx_choices[0])
+        newx = x[:idx]
+        newx.append(np.random.choice(amino_choices))
+        newx.extend(x[idx + 1:])
+        return newx
 
     #Computes the likelihood of the data given a fragment (new or current) according to equation (2)
     def likelihood_computer(self, x):
