@@ -43,10 +43,10 @@ class MetroHastingsVariants:
         if not idx_choices:
             idx_choices.append(np.array(range(self.num_frag_aas)))
         idx = np.random.choice(idx_choices[0])
-        newx = x[:idx]
+        newx = list(x[:idx])
         newx.append(np.random.choice(amino_choices))
         newx.extend(x[idx + 1:])
-        return newx
+        return tuple(newx)
 
     #Computes the likelihood of the data given a fragment (new or current) according to equation (2)
     def likelihood_computer(self, x):
