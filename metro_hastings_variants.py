@@ -22,10 +22,10 @@ class MetroHastingsVariants:
         self.hist = np.zeros_like(self.replace_mtx)
         self.result_set_size = result_set_size
 
-    def int_encode_variant(self, variant):
-        return int_encode_variant(variant)
+    def int_encode_variant(self, variant, f=int_encode_variant):
+        return f(variant) # local variable optimization
 
-    def score_frag(self, coded_frag):
+    def score_frag(self, coded_frag, enumerate=enumerate, sum=sum): # local var opt
         if coded_frag in self.variant_scores:
             return self.variant_scores[coded_frag]
         score = sum((self.replace_mtx[i,j] for j, i in enumerate(coded_frag)))
@@ -39,7 +39,8 @@ class MetroHastingsVariants:
     # The transition model defines how to move from the current fragment to a new fragment
     def transition_model(self, x, # randomly mutate one amino acid.
             idx_choices=[], # make fewer objects by creating local variables
-            amino_choices=np.array(range(num_aminos))):
+            amino_choices=np.array(range(num_aminos)),
+            np=np, range=range): # local var opt
         if not idx_choices:
             idx_choices.append(np.array(range(self.num_frag_aas)))
         idx = np.random.choice(idx_choices[0])
@@ -49,11 +50,12 @@ class MetroHastingsVariants:
         return tuple(newx)
 
     #Computes the likelihood of the data given a fragment (new or current) according to equation (2)
-    def likelihood_computer(self, x):
+    def likelihood_computer(self, x,
+            sum=sum, enumerate=enumerate): # local var opt
         return sum((self.log_replace_mtx[i,j] for j, i in enumerate(x)))
 
     #Defines whether to accept or reject the new sample
-    def acceptance_rule(self, x, x_new):
+    def acceptance_rule(self, x, x_new, np=np): # local var opt
         if x_new > x:
             return True
         else:
@@ -66,7 +68,7 @@ class MetroHastingsVariants:
     def end_condition(self):
         return len(self.best_variants) >= self.result_set_size
 
-    def run(self, min_interval=10):
+    def run(self, min_interval=10, enumerate=enumerate): # local var opt
         # likelihood_computer(x): returns the likelihood of this sample
         # transition_model(x): a function that draws a sample from a symmetric distribution and returns it
         # param_init: a starting sample
