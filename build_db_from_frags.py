@@ -30,19 +30,27 @@ try:
     known_seq_path = sys.argv[sys.argv.index('--known-seq-path') + 1]
 except ValueError:
     pass
+# Locally, the known-sequence set fits in memory. On the cloud, it's potentially terabytes, and is built and run totally differently.
+running_on_cloud = '--cloud' in sys.argv
 role = None
 try:
     role = sys.argv[sys.argv.index('--role') + 1]
 except ValueError:
     pass
+if role is not None and not running_on_cloud:
+    print('warn: roles are only used with --cloud. did you mean to use that option?')
 num_vars = 100000
+try:
+    num_vars = sys.argv[sys.argv.index('--num-vars') + 1]
+except ValueError:
+    pass
+num_vars = int(num_vars)
+print('number of variants generated for each aa fragment:', num_vars)
 cache_path = os.path.join(os.path.dirname(output_path), '.' + os.path.basename(
         output_path) + '_' + str(num_vars) + 'vars_temp')
 
 start_time = time.time()
 
-# Locally, the known-sequence set fits in memory. On the cloud, it's potentially terabytes, and is built and run totally differently.
-running_on_cloud = '--cloud' in sys.argv
 if running_on_cloud:
     if not running_as_script:
         raise NotImplementedError('the --cloud option is currently only designed to work when running as a script.')
