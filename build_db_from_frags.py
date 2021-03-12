@@ -14,7 +14,15 @@ if running_as_script and len(sys.argv) < 2:
     print('options:\n\t--cloud: run with thread pool and possibly large db'
           '\n\t--known-seq-path: path to find database of known sequences to be'
           ' pre-screened out of the hazard variants database. default: '
-          + known_seq_path)
+          + known_seq_path
+          '\n\t--role: when using delegation to address memory concerns,'
+          '\n\t\t"helper": save intermediate pre-screen results in parent dir'
+          ' of known-seq-path. ignores output path.'
+          '\n\t\t"aggregate": assuming helpers are finished, assemble final'
+          ' result from intermediates and save to output path. Note: typically,'
+          ' the helpers will work in subdirectories of the known-seq-path of'
+          ' the aggregator.'
+          '\n\t\tany other value or missing: delegation disabled')
     exit()
 
 output_path = sys.argv[-1]
@@ -22,6 +30,14 @@ try:
     known_seq_path = sys.argv[sys.argv.index('--known-seq-path') + 1]
 except ValueError:
     pass
+role = None
+try:
+    role = sys.argv[sys.argv.index('--role') + 1]
+except ValueError:
+    pass
+num_vars = 100000
+cache_path = os.path.join(os.path.dirname(output_path), '.' + os.path.basename(
+        output_path) + '_' + str(num_vars) + 'vars_temp')
 
 start_time = time.time()
 
@@ -72,7 +88,7 @@ if running_as_script:
         hazard_vars = set()
         single_variant_set = set((str(Seq(v).translate()) for v in single_variants(aa_frag)))
         #print('num single variants:', len(single_variant_set))
-        variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, 100000)
+        variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, num_vars)
         all_variants = single_variant_set | variant_computer.result_set()
         #print('num Metro-Hastings variants:', len(variant_computer.result_set()))
         for variant in all_variants: # includes original (zero-variant) too
@@ -84,8 +100,18 @@ if running_as_script:
         return hazard_vars
 
     if running_on_cloud:
-        with multiprocessing.Pool(processes=cpus) as pool:
-            hazard_set = set.union(*pool.imap_unordered(hazard_set_for_frag, zip(aa_frags, ntrs)))
+        if os.path.isfile(cache_path):
+            print('using cached hazard variant set at', cache_path)
+            with open(cache_path) as cache_f:
+                hazard_set = set(json.loads(cache_f.read()))
+                print('loaded', len(hazard_set), 'cached hazard variants')
+        else:
+            print('no cache; recalculating variants')
+            with multiprocessing.Pool(processes=cpus) as pool:
+                hazard_set = set.union(*pool.imap_unordered(hazard_set_for_frag,
+                        zip(aa_frags, ntrs)))
+            with open(cache_path, 'w+') as f:
+                f.write(json.dumps(list(hazard_set), indent=2))
     else:
         hazard_set = []
         for funtup in zip(aa_frags, ntrs):
@@ -118,10 +144,7 @@ if running_as_script:
                     if i + 19 <= len(str_in):
                         yield str_in[i:i+19]
 
-        approx_batch_size = 8 # a few dozen megabytes at a time
         hazard_set = frozenset(hazard_set)
-        with open(os.path.join(os.path.dirname(output_path), '.' + os.path.basename(output_path) + '_temp'), 'w+') as f:
-            f.write(json.dumps(list(hazard_set), indent=2)) #TODO: do we want to be generating this temp file every time?
 
         def known_seqs_in_hazard_set(known_seq_fname):
             #from Bio import SeqIO
@@ -160,17 +183,39 @@ if running_as_script:
         indiv_paths = [p for p in indiv_paths if os.path.isfile(p)]
         print(indiv_paths)
 
-        print('initial size of hazard set:', len(hazard_set))
-        with multiprocessing.Pool(processes=cpus) as pool:
-            known_hazard_seqs = set.union(*pool.imap_unordered(known_seqs_in_hazard_set, indiv_paths))
-        print('removing', len(known_hazard_seqs), 'known hazard sequence fragment(s)')
-        if len(known_hazard_seqs) < 100:
-            print(known_hazard_seqs)
-        hazard_set = (hazard_set - known_hazard_seqs) | original_frags
-        print('final size of hazard set:', len(hazard_set))
-
-    print('writing output...')
-    with open(output_path, 'w+') as f:
-        f.write(json.dumps(list(hazard_set), indent=2))
+        if role == 'aggregate':
+            print('running as aggregator.')
+            def is_partial_result(p):
+                if os.path.basename(p).split('part_')[0]:
+                    return False
+                return os.path.basename(p).split('.')[-1] == 'json'
+            indiv_paths = [p for p in indiv_paths if is_partial_result(p)]
+            if not indiv_paths:
+                raise RuntimeError('aggregator did not find any partial results')
+            for part in indiv_paths:
+                print('loading', part)
+                known_hazard_seqs = set()
+                with open(part) as part_f:
+                    known_hazard_seqs.update(json.loads(part_f.read()))
+                print('aggregated', len(known_hazard_seqs), 'known fragments from', len(indiv_paths), 'partial result files')
+        else:
+            print('not an aggregator; running pre-screen on known sequences in ', known_seq_path)
+            print('initial size of hazard set:', len(hazard_set))
+            with multiprocessing.Pool(processes=cpus) as pool:
+                known_hazard_seqs = set.union(*pool.imap_unordered(known_seqs_in_hazard_set, indiv_paths))
+            print('found', len(known_hazard_seqs), 'overlapping known hazard sequence fragment(s)')
+            if len(known_hazard_seqs) < 100:
+                print(known_hazard_seqs)
+        if role == 'helper':
+            print('running as helper')
+            part_file_path = os.path.join(os.path.dirname(known_seq_path), 'part_' + os.path.basename(known_seq_path) + '.json')
+            with open(part_file_path, 'w+') as f:
+                f.write(json.dumps(list(known_hazard_seqs), indent=2))
+        else:
+            hazard_set = (hazard_set - known_hazard_seqs) | original_frags
+            print('final size of hazard set:', len(hazard_set))
+            print('writing output...')
+            with open(output_path, 'w+') as f:
+                f.write(json.dumps(list(hazard_set), indent=2))
     print('done')
 
