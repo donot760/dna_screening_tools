@@ -47,13 +47,16 @@ else:
 original_frags = set()
 
 if running_as_script:
-    hazard_set = []
     print('generating and filtering variants...')
     if os.path.isfile('resources/hazard_scinames.txt'):
         with open('resources/hazard_scinames.txt') as f:
             hazard_scinames = [line.strip().lower() for line in f]
     else:
+        print('warning: no resources/hazard_scinames.txt found.'
+              ' hazards will not be skipped based on their scientific names in'
+              ' sequence annotations.')
         hazard_scinames = []
+    aa_frags, ntrs = [], []
     with open('resources/aa_fragment_picks.txt') as f:
         for funtrp_line in f:
             funtrp_line = funtrp_line.strip()
@@ -61,26 +64,44 @@ if running_as_script:
                 continue
             aa_frag, ntr_triples = parse_funtrp_line(funtrp_line)
             original_frags.add(aa_frag)
-            single_variant_set = set((str(Seq(v).translate()) for v in single_variants(aa_frag)))
-            #print('num single variants:', len(single_variant_set))
-            variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, 1000000)
-            all_variants = single_variant_set | variant_computer.result_set()
-            #print('num Metro-Hastings variants:', len(variant_computer.result_set()))
-            for variant in all_variants: # includes original (zero-variant) too
-                variant = str(variant)
-                if not running_on_cloud and variant in known_seq_set:
-                    print('not including', variant)
-                    continue
-                hazard_set.append(variant)
-    print(time.time() - start_time)
+            aa_frags.append(aa_frag)
+            ntrs.append(ntr_triples)
+
+    def hazard_set_for_frag(funtup): # must have 1 argument for pool
+        aa_frag, ntr_triples = funtup
+        hazard_vars = set()
+        single_variant_set = set((str(Seq(v).translate()) for v in single_variants(aa_frag)))
+        #print('num single variants:', len(single_variant_set))
+        variant_computer = MetroHastingsVariants(aa_frag, ntr_triples, 100000)
+        all_variants = single_variant_set | variant_computer.result_set()
+        #print('num Metro-Hastings variants:', len(variant_computer.result_set()))
+        for variant in all_variants: # includes original (zero-variant) too
+            variant = str(variant)
+            if not running_on_cloud and variant in known_seq_set:
+                print('not including', variant)
+                continue
+            hazard_vars.add(variant)
+        return hazard_vars
+
+    if running_on_cloud:
+        with multiprocessing.Pool(processes=cpus) as pool:
+            hazard_set = set.union(*pool.imap_unordered(hazard_set_for_frag, zip(aa_frags, ntrs)))
+    else:
+        hazard_set = []
+        for funtup in zip(aa_frags, ntrs):
+            hazard_set.extend(hazard_set_for_frag(funtup))
+        hazard_set = set(hazard_set)
+
+    print('done. time since start (s):', time.time() - start_time)
     tot_m, used_m, free_m = map(int, os.popen('free -t -m').readlines()[-1].split()[1:])
-    print(used_m/tot_m*100, '% memory used')
+    print(int(used_m/tot_m*10000)/100, '% memory used')
     print('done')
 
     if running_on_cloud:
 
         def split_into_windows(str_in):
-            if not set(str_in.lower()) - set('atcg \t\n'): # if it's DNA:
+            str_in = str_in.lower().replace('u', 't')
+            if not set(str_in[:1000]) - set('atcgn \t\n'): # if it's DNA:
                 if False: # enable in the future when actually screening DNA
                     for i in range(len(str_in)):
                         if i + 42 <= len(str_in):
