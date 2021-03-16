@@ -14,7 +14,7 @@ if running_as_script and len(sys.argv) < 2:
     print('options:\n\t--cloud: run with thread pool and possibly large db'
           '\n\t--known-seq-path: path to find database of known sequences to be'
           ' pre-screened out of the hazard variants database. default: '
-          + known_seq_path
+          + known_seq_path +
           '\n\t--role: when using delegation to address memory concerns,'
           '\n\t\t"helper": save intermediate pre-screen results in parent dir'
           ' of known-seq-path. ignores output path.'
